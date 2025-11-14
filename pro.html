@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <title>Risk beslisboom PRO</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", Arial, sans-serif;
+      background: radial-gradient(circle at top left, #1e293b, #020617 55%);
+      color: #e5e7eb;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .app {
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      padding: 20px 18px 22px;
+      border-radius: 20px;
+      max-width: 480px;
+      width: 100%;
+      box-shadow:
+        0 24px 60px rgba(0,0,0,0.7),
+        0 0 0 1px rgba(15,23,42,0.9);
+      position: relative;
+    }
+
+    /* SETTINGS BUTTON */
+    .settings-btn {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      border: 1px solid rgba(148,163,184,0.35);
+      background: rgba(30,41,59,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      cursor: pointer;
+      color: #e5e7eb;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+
+    .settings-btn:active {
+      transform: scale(0.96);
+      opacity: 0.9;
+    }
+
+    /* SETTINGS PANEL OVERLAY */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      justify-content: flex-end;
+      align-items: stretch;
+      z-index: 50;
+    }
+
+    .overlay.active {
+      display: flex;
+    }
+
+    /* POPUP PANEL */
+    .panel {
+      background: #0f172a;
+      width: 300px;
+      max-width: 90%;
+      height: 100%;
+      padding: 20px;
+      border-left: 1px solid #334155;
+      box-shadow: -6px 0 18px rgba(0,0,0,0.4);
+      animation: slideIn 0.25s ease-out forwards;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); }
+      to   { transform: translateX(0); }
+    }
+
+    .panel h2 {
+      margin: 0;
+      font-size: 18px;
+      color: #f1f5f9;
+    }
+
+    .close-btn {
+      font-size: 20px;
+      color: #e5e7eb;
+      background: none;
+      border: none;
+      align-self: flex-end;
+      cursor: pointer;
+      margin-bottom: 6px;
+    }
+
+    .panel label {
+      font-size: 13px;
+      color: #9ca3af;
+      margin-bottom: 4px;
+    }
+
+    .panel input,
+    .panel select {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid rgba(75,85,99,0.9);
+      padding: 8px 10px;
+      background: rgba(15,23,42,0.95);
+      color: #e5e7eb;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .panel select:focus,
+    .panel input:focus {
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 1px rgba(37,99,235,0.7);
+    }
+
+    /* MAIN VIEW */
+    #question {
+      margin: 30px 0 16px;
+      font-size: 18px;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .buttons button {
+      padding: 12px;
+      border-radius: 999px;
+      border: none;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: white;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .nav-buttons {
+      margin-top: 18px;
+      display: flex;
+      gap: 10px;
+    }
+
+    #backBtn, #restartBtn {
+      flex: 1;
+      padding: 10px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    #backBtn {
+      background: #1f2937;
+      border: 1px solid #4b5563;
+      color: #e5e7eb;
+    }
+
+    #restartBtn {
+      background: #1d4ed8;
+      color: white;
+    }
+
+    #result {
+      margin-top: 16px;
+      text-align: center;
+    }
+
+    .risk { font-size: 20px; font-weight: bold; color: #bfdbfe; }
+    .amount span { color: #facc15; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <div class="app">
+    <div class="settings-btn" id="openSettings">⚙️</div>
+
+    <div id="question"></div>
+    <div id="result" class="hidden"></div>
+
+    <div class="buttons" id="answerButtons"></div>
+
+    <div class="nav-buttons">
+      <button id="backBtn" class="hidden">Vorige stap</button>
+      <button id="restartBtn" class="hidden">Opnieuw</button>
+    </div>
+  </div>
+
+  <!-- SETTINGS PANEL -->
+  <div class="overlay" id="overlay">
+    <div class="panel">
+      <button class="close-btn" id="closeSettings">✖</button>
+      <h2>Instellingen</h2>
+
+      <div>
+        <label>Account size (&euro;)</label>
+        <input type="number" id="accountSizeInput" placeholder="Bijv. 5000">
+      </div>
+
+      <div>
+        <label>Risicomodus</label>
+        <select id="riskModeSelect">
+          <option value="aggressive">Aggressief (1.0×)</option>
+          <option value="stfunded">ST funded (0.75×)</option>
+          <option value="medium">Medium (0.5×)</option>
+          <option value="safe">Veilig (0.35×)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* SAME LOGIC, ONLY SETTINGS UI MOVED → WORKS IDENTICAL */
+
+const RISK_MODES = {
+  aggressive: { label: "Aggressief", factor: 1.0 },
+  stfunded: { label: "ST funded", factor: 0.75 },
+  medium: { label: "Medium", factor: 0.5 },
+  safe: { label: "Veilig", factor: 0.35 }
+};
+
+const nodes = {
+  start: {
+    question: "Welke timeframe?",
+    choices: [
+      { label: "< 5 min", next: "amdModel" },
+      { label: "≥ 5 min", next: "pfModel" }
+    ]
+  },
+  pfModel: {
+    question: "Perfect forever model?",
+    choices: [
+      { label: "Ja", next: "resultPFModel" },
+      { label: "Nee", next: "resultZero" }
+    ]
+  },
+  amdModel: {
+    question: "AMD model?",
+    choices: [
+      { label: "Ja", next: "resultAMDHoog" },
+      { label: "Nee", next: "sessieLiq" }
+    ]
+  },
+
+  sessieLiq: {
+    question: "Sessie high/low liquidity uitgehaald?",
+    choices: [
+      { label: "Ja", next: "smt1" },
+      { label: "Nee", next: "smt2" }
+    ]
+  },
+
+  smt1: {
+    question: "SMT aanwezig? (#1)",
+    choices: [
+      { label: "Ja", next: "ifvg2" },
+      { label: "Nee", next: "ifvg1" }
+    ]
+  },
+
+  smt2: {
+    question: "SMT aanwezig? (#2)",
+    choices: [
+      { label: "Ja", next: "ifvg3" },
+      { label: "Nee", next: "resultZero" }
+    ]
+  },
+
+  ifvg1: {
+    question: "IFVG (#1)?",
+    choices: [
+      { label: "Ja", next: "displacement" },
+      { label: "Nee", next: "resultZero" },
+      { label: "Eerste FVG", next: "result15_400_500" }
+    ]
+  },
+
+  ifvg2: {
+    question: "IFVG (#2)?",
+    choices: [
+      { label: "Ja", next: "internalExternal" },
+      { label: "Nee", next: "displacement" },
+      { label: "Eerste FVG", next: "result20_500_700" }
+    ]
+  },
+
+  ifvg3: {
+    question: "IFVG (#3)?",
+    choices: [
+      { label: "Ja", next: "minorLiq" },
+      { label: "Nee", next: "resultZero" },
+      { label: "Eerste FVG", next: "result20_500_700" }
+    ]
+  },
+
+  displacement: {
+    question: "Displacement?",
+    choices: [
+      { label: "Ja", next: "result10_200_300" },
+      { label: "Nee", next: "resultZero" }
+    ]
+  },
+
+  internalExternal: {
+    question: "Internal + external liquidity gepakt?",
+    choices: [
+      { label: "Ja", next: "opening1" },
+      { label: "Nee", next: "opening2" }
+    ]
+  },
+
+  minorLiq: {
+    question: "Minor liquidity gepakt?",
+    choices: [
+      { label: "Ja", next: "result10_200_300" },
+      { label: "Nee", next: "resultZero" }
+    ]
+  },
+
+  opening1: {
+    question: "Veel te bearish/bullish opening? (#1)",
+    choices: [
+      { label: "Ja", next: "result13_250_350" },
+      { label: "Nee", next: "result20_400_600" }
+    ]
+  },
+
+  opening2: {
+    question: "Veel te bearish/bullish opening? (#2)",
+    choices: [
+      { label: "Ja", next: "result10_200_300" },
+      { label: "Nee", next: "result18_400_600" }
+    ]
+  },
+
+  resultPFModel: { percent: 1.75 },
+  resultAMDHoog: { percent: 1.50 },
+  result15_400_500: { percent: 1.50 },
+  result20_500_700: { percent: 2.00 },
+  result10_200_300: { percent: 1.00 },
+  result13_250_350: { percent: 1.30 },
+  result20_400_600: { percent: 2.00 },
+  result18_400_600: { percent: 1.80 },
+  resultZero: { percent: 0.00 }
+};
+
+const questionEl = document.getElementById("question");
+const resultEl = document.getElementById("result");
+const answerButtons = document.getElementById("answerButtons");
+const backBtn = document.getElementById("backBtn");
+const restartBtn = document.getElementById("restartBtn");
+
+const accountSizeInput = document.getElementById("accountSizeInput");
+const riskModeSelect = document.getElementById("riskModeSelect");
+
+const overlay = document.getElementById("overlay");
+document.getElementById("openSettings").onclick = () => overlay.classList.add("active");
+document.getElementById("closeSettings").onclick = () => overlay.classList.remove("active");
+
+overlay.onclick = (e) => {
+  if (e.target === overlay) overlay.classList.remove("active");
+};
+
+function getAccount() {
+  let v = parseFloat(accountSizeInput.value);
+  return isFinite(v) && v > 0 ? v : null;
+}
+function getMode() {
+  return RISK_MODES[riskModeSelect.value];
+}
+
+let currentNodeId = "start";
+const history = [];
+
+function showNode() {
+  const node = nodes[currentNodeId];
+
+  if (node.question) {
+    questionEl.textContent = node.question;
+    resultEl.classList.add("hidden");
+    answerButtons.innerHTML = "";
+
+    node.choices.forEach(c => {
+      const btn = document.createElement("button");
+      btn.textContent = c.label;
+      btn.onclick = () => { history.push(currentNodeId); currentNodeId = c.next; showNode(); };
+      answerButtons.append(btn);
+    });
+
+    backBtn.classList.toggle("hidden", history.length === 0);
+    restartBtn.classList.add("hidden");
+
+  } else {
+    const pct = node.percent;
+    const acc = getAccount();
+    const mode = getMode();
+    let html = `<div class="risk">Risico: ${pct.toFixed(2)}%</div>`;
+
+    if (acc) {
+      const modelAmount = acc * pct / 100;
+      const modeAmount = modelAmount * mode.factor;
+      html += `
+        <div class="amount">
+          Basis: €${modelAmount.toFixed(2)}<br>
+          Met ${mode.label}: <span>€${modeAmount.toFixed(2)}</span>
+        </div>
+      `;
+    } else {
+      html += `<div class="amount">Vul je account size in via instellingen ⚙️</div>`;
+    }
+
+    questionEl.textContent = "Resultaat";
+    resultEl.innerHTML = html;
+    resultEl.classList.remove("hidden");
+    answerButtons.innerHTML = "";
+
+    backBtn.classList.remove("hidden");
+    restartBtn.classList.remove("hidden");
+  }
+}
+
+backBtn.onclick = () => {
+  if (history.length) {
+    currentNodeId = history.pop();
+    showNode();
+  }
+};
+
+restartBtn.onclick = () => {
+  currentNodeId = "start";
+  history.length = 0;
+  showNode();
+};
+
+showNode();
+</script>
+</body>
+</html>
